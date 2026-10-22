@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  color: #1c1916;
+  background: #f3f0e8;
+  font-family: "Segoe UI", system-ui, sans-serif;
+}
+
+input, select, textarea, button {
+  font: inherit;
+}
