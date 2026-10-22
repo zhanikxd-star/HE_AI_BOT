@@ -1,0 +1,80 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: hr
+      POSTGRES_PASSWORD: hr
+      POSTGRES_DB: hr
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U hr -d hr"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      DATABASE_URL: postgresql+psycopg://hr:hr@postgres:5432/hr
+      JWT_SECRET: ${JWT_SECRET:-local-only-not-for-production}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-magripaharip_bot}
+      CORPORATE_CHAT_ID: ${CORPORATE_CHAT_ID:--1002615527142}
+      SUPER_ADMIN_TELEGRAM_USERNAME: ${SUPER_ADMIN_TELEGRAM_USERNAME:-Kapanov_30}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      NOTION_API_KEY: ${NOTION_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+      CORS_ORIGINS: http://localhost:3000
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+
+  worker:
+    build: ./backend
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      DATABASE_URL: postgresql+psycopg://hr:hr@postgres:5432/hr
+      JWT_SECRET: ${JWT_SECRET:-local-only-not-for-production}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-magripaharip_bot}
+      CORPORATE_CHAT_ID: ${CORPORATE_CHAT_ID:--1002615527142}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LLM_BASE_URL: ${LLM_BASE_URL:-https://api.openai.com/v1}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["python", "-m", "app.worker"]
+
+  bot:
+    build: ./backend
+    environment:
+      APP_ENV: ${APP_ENV:-local}
+      DATABASE_URL: postgresql+psycopg://hr:hr@postgres:5432/hr
+      JWT_SECRET: ${JWT_SECRET:-local-only-not-for-production}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-magripaharip_bot}
+      CORPORATE_CHAT_ID: ${CORPORATE_CHAT_ID:--1002615527142}
+      NOTION_API_KEY: ${NOTION_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: ["python", "-m", "app.bot"]
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  pgdata:
